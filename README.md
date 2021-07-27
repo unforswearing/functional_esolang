@@ -1,5 +1,3 @@
-It turns out my idea is a bit similar to the esolang called "Functional", so why not implement that?
-
 [https://esolangs.org/wiki/Functional](https://esolangs.org/wiki/Functional)
 
 Implementation details:
