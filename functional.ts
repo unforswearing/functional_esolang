@@ -1,29 +1,53 @@
 // >> functional.ts;
 // >> implementation of https://esolangs.org/wiki/Functional
+
+// use readline to parse input files
+// @todo this also needs a repl
 import readline from "readline";
+
+// grammar is a object of regex tokenizers for each language element
 import language_grammar from "./grammar";
 
 // --------------------------------------------
+// contain language elements and types in a single namespace
 declare namespace Language {
+  // comparisons - true/false, -gt, -lt, etc
   export type ComparisonTypes = string | number | boolean;
+
+  // words that cannot be used as a name for a user set function
   export type ReservedWords = string[];
+
+  // arguments are immutable and can only be string|number|function
   export type UserArgumentType = Readonly<string | number | Function>;
+
+  // user variables (functions) are stored as an array of json objects
   export type UserSetVariables = { [key: string]: UserArgumentType };
 
+  // Language types from https://esolangs.org/wiki/Functional
+  // dictating parameters for blocks runBlock({ print("this is a block" )})
   export type BlockType = RegExp;
+  // bareword = unquoted word that does not refer to any function
   export type BarewordType = RegExp;
+  // basic string checking
   export type StringType = RegExp;
 
+  // make a little environment for user stuff
   export interface UserEnvironment {
     comparison_types: ComparisonTypes;
     reserved_words: ReservedWords;
   }
 
+  // types for checking language features
+  // immutable array of regex patterns
   export type PatternMatching = Readonly<{ [key: string]: RegExp }>;
+  // the type container for tokenizer output
   export type TokenizeType = [Object[], string[], string[], string[], string[]];
+  // the parser object is the final result of the tokenizer
   export type TokenizerParserObject = { [key: string]: RegExp };
+  // the type container for the standard library
   export type StandardLibrary = Readonly<{ [key: string]: Function }>;
 
+  // a development interface
   export interface Dev {
     pattern_matching: PatternMatching;
     tokenize_type: TokenizeType;
@@ -32,8 +56,10 @@ declare namespace Language {
 }
 
 // --------------------------------------------
+// most reserved words are builtin functions. see https://esolangs.org/wiki/Functional
 const language_reserved: Language.ReservedWords = [
   "%",
+  "nop",
   "print",
   "printf",
   "set",
@@ -55,6 +81,7 @@ const language_reserved: Language.ReservedWords = [
 ];
 
 // --------------------------------------------
+// bock and template checks and params
 const language_patterns: Language.PatternMatching = {
   block_function_strings: /\"([a-zA-Z]|\s|\d)+"/g,
   block_function_split_lines: /\n+/g,
@@ -65,11 +92,13 @@ const language_patterns: Language.PatternMatching = {
 // --------------------------------------------
 /* everything is a function */
 class UserSetFunctions implements Language.UserEnvironment {
+  // check if vars are reserved/forbidden
   private isForbidden = (_: Boolean) => _ && false;
   private isReserved = (token: string): Boolean => {
     return Boolean(language_reserved.includes(token));
   };
 
+  // make sure arguments are not reserved or forbidden
   private typesetArgument = (variable: any): Language.UserArgumentType => {
     let tmp: Language.UserArgumentType = variable;
     if (this.isForbidden(variable) || this.isReserved(variable)) {
@@ -78,10 +107,14 @@ class UserSetFunctions implements Language.UserEnvironment {
     return tmp;
   };
 
+  // @todo a list of errors thrown from the interpreter
   error_types = {};
+  // @todo this is not needed perhaps
   reserved_words = language_reserved;
+  // @todo figure out what this does
   comparison_types = "%s";
 
+  // establish the object to store user variables
   user_set_variables: Language.UserSetVariables = {};
 
   // @todo this needs to be completed
@@ -90,6 +123,7 @@ class UserSetFunctions implements Language.UserEnvironment {
     return returnVar;
   }
 
+  // set the variable and convert to type "UserArgumentType"
   set(
     name: string,
     value: Language.UserArgumentType
@@ -101,10 +135,11 @@ class UserSetFunctions implements Language.UserEnvironment {
 }
 
 // --------------------------------------------
+// a tokenizer specifically to handle the edge cases for blocks
 const blockTokenizer = (
   blockFunction: string
 ): Array<Language.ComparisonTypes> => {
-  let strings = blockFunction.match(language_patterns.block_function_strings);
+  // let strings = blockFunction.match(language_patterns.block_function_strings);
   let splitLines = blockFunction
     .replace(language_patterns.block_function_split_lines, "")
     .split(" ");
@@ -124,25 +159,30 @@ const blockTokenizer = (
 };
 
 // --------------------------------------------
+// @todo is this different from user_set_variables? why does that exist?
 const Vars: UserSetFunctions = new UserSetFunctions();
 // --------------------------------------------
 
 const StandardLibrary: Language.StandardLibrary = {
   // --------------------------------------------
+  // @todo needs validation to prevent dumb stuff
   print: (variable: any): void => {
     console.log(variable);
   },
   // --------------------------------------------
+  // print a templated string (similar to bash / c printf)
   printf: (string: string, variable: any): void => {
     console.log(
       string.replace(language_patterns.printf_template_operator, variable)
     );
   },
   // --------------------------------------------
+  // retrieve a user variable by "variable" name
   get: (variable: string): Language.UserArgumentType => {
     return Vars.get(variable);
   },
   // --------------------------------------------
+  // set a user variable as "variable" "value"
   set: (
     variable: string,
     value: Language.UserArgumentType
@@ -151,12 +191,16 @@ const StandardLibrary: Language.StandardLibrary = {
     return value;
   },
   // --------------------------------------------
+  // comments. rem === remove for the interpreter
   rem: (string: string): Boolean => {
     return Boolean(string);
   },
   // --------------------------------------------
+  // do absolutely nothing in all circumstances
   nop: () => null,
   // --------------------------------------------
+  // if() without then or else, per spec
+  // @todo this needs to be fleshed out
   if: (condition: Boolean, ifTrue: any) => {
     if (condition) {
       () => ifTrue;
@@ -165,6 +209,8 @@ const StandardLibrary: Language.StandardLibrary = {
     }
   },
   // --------------------------------------------
+  // if using else, per spec
+  // @todo this needs to be fleshed out
   if_else: (condition: Boolean, ifTrue: any, ifFalse: any) => {
     if (condition) {
       () => ifTrue;
@@ -173,8 +219,12 @@ const StandardLibrary: Language.StandardLibrary = {
     }
   },
   // --------------------------------------------
+  // implmenting loop() per spec
+  // @todo needs to be fleshed out
   loop: (whileLooping: any) => {
-    // parse loop body, could use a grammar for this
+    // parse loop body
+    // @todo could use a grammar for this
+    // see blockTokenizer above
     let blockTokens = blockTokenizer(whileLooping);
 
     // process each line in the loop block
@@ -183,8 +233,11 @@ const StandardLibrary: Language.StandardLibrary = {
     });
   },
   // --------------------------------------------
+  // while(), similar to loop. implemented per spec
   while: (condition: Boolean, whileTrue: any) => {
-    // parse loop body, could use a grammar for this
+    // parse loop body,
+    // @todo could use a grammar for this
+    // see blockTokenizer above
     let blockTokens = blockTokenizer(whileTrue);
 
     // process each line in the loop block
@@ -195,16 +248,22 @@ const StandardLibrary: Language.StandardLibrary = {
     }
   },
   // --------------------------------------------
+  // declare a function as "name" with args "args" and body "functionBody"
+  // @todo this needs to be fleshed out
   function: (name: string, args: [any], functionBody: any) => {
     let tmp = new Function(...args);
     Vars.set(name, tmp.toString());
     return tmp;
   },
   // --------------------------------------------
+  // combine a list of items into a single string
+  // @todo this needs to be fleshed out / tested
   concat: (...items: [string | number]) => {
     return items.join(" ");
   },
   // --------------------------------------------
+  // request user input
+  // @todo this needs to be fleshed out and tested to make sure readline works
   input: (prompt: string) => {
     const rl = readline.createInterface({
       input: process.stdin,
@@ -225,6 +284,7 @@ const StandardLibrary: Language.StandardLibrary = {
     }
   },
   // --------------------------------------------
+  // equality test, using the type ComparisonTypes
   equal: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -232,6 +292,7 @@ const StandardLibrary: Language.StandardLibrary = {
     return left === right;
   },
   // --------------------------------------------
+  // inequality test, using the type ComparisonTypes
   not_equal: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -239,6 +300,7 @@ const StandardLibrary: Language.StandardLibrary = {
     return left !== right;
   },
   // --------------------------------------------
+  // if left is less than right
   less_than: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -246,6 +308,7 @@ const StandardLibrary: Language.StandardLibrary = {
     return left < right;
   },
   // --------------------------------------------
+  // if left is less than or equal to right
   less_or_equal: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -253,6 +316,7 @@ const StandardLibrary: Language.StandardLibrary = {
     return left <= right;
   },
   // --------------------------------------------
+  // if left is greater than right
   greater_than: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -260,6 +324,7 @@ const StandardLibrary: Language.StandardLibrary = {
     return left > right;
   },
   // --------------------------------------------
+  // if left is greater than or equal to right
   greater_or_equal: (
     left: Language.ComparisonTypes,
     right: Language.ComparisonTypes
@@ -279,7 +344,7 @@ loop({
   print(thing())
 })
 
-function(anewfunc, print("this is a new function")
+function(anewfunc, print("this is a new function"))
 function(add, a,b, a+b)
 
 add(4, 7)
@@ -342,14 +407,32 @@ function tokenize(
   return tokens;
 }
 
+// create an object of tokens from the test script above
 let tokenArray = tokenize(
-  test,//.replace(/\n+/g, " "),
+  test, //.replace(/\n+/g, " "),
   language_grammar,
   "INVALID"
 );
+
 console.log(tokenArray);
 
-// if reserved.includes(token) -> use the token to call the funtion directly
-// if type === BAREWORD -> search 'user_set_variables' to check if it has been declared
-// if not, throw an error
-// 
+// loop through tokens and interpret / execute actions (no compilation)
+// @todo need to decide how to parse these as simply as possible
+for (let j = 0; j < tokenArray.length; j++) {
+  // if reserved.includes(token) -> use the token to call the funtion directly
+  // if type === BAREWORD -> search 'user_set_variables' to check if it has been declared
+  // if not, throw an error
+  //
+  let entry = tokenArray[j];
+  let token = entry.token;
+  let tokType = entry.type;
+
+  if (tokType === "INVALID") throw "INVALID";
+
+  const lib = StandardLibrary;
+
+  switch (tokType) {
+    case "BAREWORD":
+      console.log();
+  }
+}
