@@ -13,16 +13,12 @@ import language_grammar from "./grammar";
 declare namespace Language {
   // comparisons - true/false, -gt, -lt, etc
   export type ComparisonTypes = string | number | boolean;
-
   // words that cannot be used as a name for a user set function
   export type ReservedWords = string[];
-
   // arguments are immutable and can only be string|number|function
   export type UserArgumentType = Readonly<string | number | Function>;
-
   // user variables (functions) are stored as an array of json objects
   export type UserSetVariables = { [key: string]: UserArgumentType };
-
   // Language types from https://esolangs.org/wiki/Functional
   // dictating parameters for blocks runBlock({ print("this is a block" )})
   export type BlockType = RegExp;
@@ -78,6 +74,12 @@ const language_reserved: Language.ReservedWords = [
   "less_or_equals",
   "greater_than",
   "greater_or_equals",
+  "add",
+  "sub",
+  "mul",
+  "div",
+  "pow",
+  "mod",
 ];
 
 // --------------------------------------------
@@ -108,7 +110,10 @@ class UserSetFunctions implements Language.UserEnvironment {
   };
 
   // @todo a list of errors thrown from the interpreter
-  error_types = {};
+  error_types = {
+    undef: "%s is not defined",
+  };
+
   // @todo this is not needed perhaps
   reserved_words = language_reserved;
   // @todo figure out what this does
@@ -183,7 +188,7 @@ const StandardLibrary: Language.StandardLibrary = {
   },
   // --------------------------------------------
   // set a user variable as "variable" "value"
-  set: (
+  "set": (
     variable: string,
     value: Language.UserArgumentType
   ): Language.UserArgumentType => {
@@ -343,7 +348,7 @@ loop({
   set(thing, "this is a thing")
   print(thing())
 })
-
+testing barewordz
 function(anewfunc, print("this is a new function"))
 function(add, a,b, a+b)
 
@@ -416,8 +421,11 @@ let tokenArray = tokenize(
 
 console.log(tokenArray);
 
-// loop through tokens and interpret / execute actions (no compilation)
-// @todo need to decide how to parse these as simply as possible
+/* 
+  loop through tokens and interpret / execute actions (no compilation)
+  @todo need to decide how to parse these as simply as possible
+*/
+
 for (let j = 0; j < tokenArray.length; j++) {
   // if reserved.includes(token) -> use the token to call the funtion directly
   // if type === BAREWORD -> search 'user_set_variables' to check if it has been declared
